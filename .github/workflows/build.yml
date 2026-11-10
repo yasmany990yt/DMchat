@@ -1,0 +1,28 @@
+name: Build Simulator App
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add Firebase config
+        run: echo "${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}" | base64 --decode > DMChat/GoogleService-Info.plist
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Build for iOS Simulator
+        run: |
+          xcodebuild -project DMChat.xcodeproj -scheme DMChat -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build ONLY_ACTIVE_ARCH=NO ARCHS="arm64 x86_64" \
+            CODE_SIGNING_ALLOWED=NO build
+          cd build/Build/Products/Release-iphonesimulator
+          zip -r "$GITHUB_WORKSPACE/DMChat-simulator.zip" DMChat.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DMChat-simulator
+          path: DMChat-simulator.zip
