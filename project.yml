@@ -1,0 +1,27 @@
+name: DMChat
+options:
+  bundleIdPrefix: com.yasmany
+  deploymentTarget:
+    iOS: "16.0"
+packages:
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    from: 11.0.0
+targets:
+  DMChat:
+    type: application
+    platform: iOS
+    sources: [DMChat]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yasmany.dmchat
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_CFBundleDisplayName: DMChat
+        MARKETING_VERSION: 1.0
+        CURRENT_PROJECT_VERSION: 1
+    dependencies:
+      - package: Firebase
+        product: FirebaseAuth
+      - package: Firebase
+        product: FirebaseFirestore
