@@ -6,12 +6,17 @@ options:
 packages:
   Firebase:
     url: https://github.com/firebase/firebase-ios-sdk
-    from: 11.0.0
+    from: 13.0.0
 targets:
   DMChat:
     type: application
     platform: iOS
     sources: [DMChat]
+    entitlements:
+      path: Config/DMChat.entitlements
+      properties:
+        keychain-access-groups:
+          - "$(AppIdentifierPrefix)com.yasmany.dmchat"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yasmany.dmchat
