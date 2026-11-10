@@ -11,6 +11,8 @@ service cloud.firestore {
       match /messages/{msgId} {
         allow read: if request.auth != null &&
           request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members;
+        allow update: if request.auth != null &&
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members;
         allow create: if request.auth != null &&
           request.resource.data.senderId == request.auth.uid &&
           request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members;
