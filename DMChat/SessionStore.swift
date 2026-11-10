@@ -56,5 +56,19 @@ final class SessionStore: ObservableObject {
         } catch { errorMessage = error.localizedDescription }
     }
 
+    func changePassword(_ p: String) async -> String {
+        do { try await Auth.auth().currentUser?.updatePassword(to: p); return "Password updated." }
+        catch { return error.localizedDescription }
+    }
+
+    func deleteAccount() async -> String {
+        guard let u = Auth.auth().currentUser else { return "" }
+        do {
+            try await u.delete()
+            try? await db.collection("users").document(u.uid).delete()
+            return ""
+        } catch { return "Log out and back in, then try again. (\(error.localizedDescription))" }
+    }
+
     func signOut() { try? Auth.auth().signOut() }
 }

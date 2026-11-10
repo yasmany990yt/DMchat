@@ -5,12 +5,13 @@ struct InboxView: View {
     @StateObject private var vm = InboxViewModel()
     @State private var path: [ChatRoute] = []
     @State private var showNew = false
+    @State private var showSettings = false
 
     var body: some View {
         NavigationStack(path: $path) {
             List(vm.chats) { chat in
                 if let me = session.user {
-                    NavigationLink(value: ChatRoute(chatId: chat.id, otherName: chat.otherName(me: me.id))) {
+                    NavigationLink(value: ChatRoute(chatId: chat.id, otherId: chat.otherId(me: me.id), otherName: chat.otherName(me: me.id))) {
                         HStack(spacing: 12) {
                             Circle()
                                 .fill(LinearGradient(colors: [.purple, .pink, .orange],
@@ -31,11 +32,12 @@ struct InboxView: View {
             .navigationTitle(session.user?.username ?? "Messages")
             .navigationDestination(for: ChatRoute.self) { ChatView(route: $0) }
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button("Log out") { session.signOut() } }
+                ToolbarItem(placement: .topBarLeading) { Button { showSettings = true } label: { Image(systemName: "gearshape") } }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showNew = true } label: { Image(systemName: "square.and.pencil") }
                 }
             }
+            .sheet(isPresented: $showSettings) { SettingsView() }
             .sheet(isPresented: $showNew) {
                 NewChatView(vm: vm) { route in path.append(route) }
             }
