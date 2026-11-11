@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UniformTypeIdentifiers
 
 struct ChatView: View {
     @EnvironmentObject var session: SessionStore
@@ -11,6 +12,10 @@ struct ChatView: View {
     @State private var pick: PhotosPickerItem?
     @State private var replyTo: Message?
     @State private var fullImage: UIImage?
+    @State private var showGif = false
+    @State private var showFiles = false
+    @State private var shareURL: URL?
+    @State private var fileNote = ""
 
     private var me: String { session.user?.id ?? "" }
 
@@ -42,6 +47,8 @@ struct ChatView: View {
             }
             HStack(spacing: 8) {
                 PhotosPicker(selection: $pick, matching: .images) { Image(systemName: "photo").font(.title3) }
+                Button { showGif = true } label: { Text("GIF").font(.caption.bold()).padding(4).overlay(RoundedRectangle(cornerRadius: 5).stroke()) }
+                Button { showFiles = true } label: { Image(systemName: "paperclip").font(.title3) }
                 TextField("Message...", text: $draft, axis: .vertical).lineLimit(1...4)
                     .padding(.horizontal, 14).padding(.vertical, 10)
                     .background(Color(.secondarySystemBackground)).cornerRadius(22)
@@ -68,16 +75,29 @@ struct ChatView: View {
                 pick = nil
             }
         }
+        .sheet(isPresented: $showGif) { GifPicker { url in send(gif: url) } }
+        .sheet(isPresented: Binding(get: { shareURL != nil }, set: { if !$0 { shareURL = nil } })) {
+            if let u = shareURL { ActivityView(url: u) }
+        }
+        .alert(fileNote, isPresented: Binding(get: { !fileNote.isEmpty }, set: { if !$0 { fileNote = "" } })) { Button("OK") {} }
+        .fileImporter(isPresented: $showFiles, allowedContentTypes: [.item]) { result in
+            guard case .success(let url) = result else { return }
+            let ok = url.startAccessingSecurityScopedResource()
+            defer { if ok { url.stopAccessingSecurityScopedResource() } }
+            guard let d = try? Data(contentsOf: url) else { return }
+            if d.count > 700_000 { fileNote = "That file is too big (max 700 KB)." } else { send(file: d, name: url.lastPathComponent) }
+        }
         .sheet(isPresented: Binding(get: { fullImage != nil }, set: { if !$0 { fullImage = nil } })) {
             if let img = fullImage { Image(uiImage: img).resizable().scaledToFit().padding() }
         }
     }
 
-    private func send(image: Data?) {
-        let text = image == nil ? draft : ""
+    private func send(image: Data? = nil, gif: String? = nil, file: Data? = nil, name: String? = nil) {
+        let text = (image == nil && gif == nil && file == nil) ? draft : ""
         let reply = replyTo.map { $0.unsent ? "Unsent message" : ($0.text.isEmpty ? "📷 Photo" : $0.text) }
         draft = ""; replyTo = nil
-        Task { await vm.send(text: text, image: image, replyText: reply, chatId: route.chatId, senderId: me) }
+        Task { await vm.send(text: text, image: image, replyText: reply, chatId: route.chatId, senderId: me,
+                                gif: gif, file: file, fileName: name) }
     }
 
     static func compressed(_ data: Data) -> Data? {
@@ -124,6 +144,17 @@ struct ChatView: View {
             Text("Message unsent").italic().font(.subheadline).foregroundColor(.secondary)
                 .padding(.horizontal, 14).padding(.vertical, 9)
                 .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(.systemGray4)))
+        } else if let g = msg.gif, let u = URL(string: g) {
+            GifView(url: u).frame(width: 200, height: 160).cornerRadius(18)
+        } else if let f = msg.file {
+            Button {
+                let url = FileManager.default.temporaryDirectory.appendingPathComponent(msg.fileName ?? "file")
+                try? f.write(to: url); shareURL = url
+            } label: {
+                Label("\(msg.fileName ?? "file") · \(f.count / 1024) KB", systemImage: "doc").font(.subheadline)
+                    .padding(.horizontal, 14).padding(.vertical, 9).background(Color(.systemGray5))
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            }.buttonStyle(.plain)
         } else if let d = msg.image, let ui = UIImage(data: d) {
             Image(uiImage: ui).resizable().scaledToFit().frame(maxWidth: 220).cornerRadius(18)
                 .onTapGesture { fullImage = ui }

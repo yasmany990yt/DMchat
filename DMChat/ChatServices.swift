@@ -63,7 +63,8 @@ final class ChatViewModel: ObservableObject {
                                date: (x["createdAt"] as? Timestamp)?.dateValue() ?? Date(),
                                image: x["image"] as? Data, replyText: x["replyText"] as? String,
                                reactions: x["reactions"] as? [String: String] ?? [:],
-                               unsent: x["unsent"] as? Bool ?? false)
+                               unsent: x["unsent"] as? Bool ?? false,
+                               gif: x["gif"] as? String, file: x["file"] as? Data, fileName: x["fileName"] as? String)
             }
         }
         l2 = ref.addSnapshotListener { [weak self] snap, _ in
@@ -74,15 +75,18 @@ final class ChatViewModel: ObservableObject {
     }
     func stop() { l1?.remove(); l2?.remove() }
 
-    func send(text: String, image: Data?, replyText: String?, chatId: String, senderId: String) async {
+    func send(text: String, image: Data?, replyText: String?, chatId: String, senderId: String,
+                  gif: String? = nil, file: Data? = nil, fileName: String? = nil) async {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !clean.isEmpty || image != nil else { return }
+        guard !clean.isEmpty || image != nil || gif != nil || file != nil else { return }
         let ref = db.collection("chats").document(chatId)
         var data: [String: Any] = ["senderId": senderId, "text": clean, "createdAt": FieldValue.serverTimestamp()]
         if let image { data["image"] = image }
+        if let gif { data["gif"] = gif }
+        if let file { data["file"] = file; data["fileName"] = fileName ?? "file" }
         if let replyText { data["replyText"] = replyText }
         try? await ref.collection("messages").addDocument(data: data)
-        try? await ref.updateData(["lastMessage": image != nil ? "📷 Photo" : clean,
+        try? await ref.updateData(["lastMessage": image != nil ? "📷 Photo" : gif != nil ? "GIF" : file != nil ? "📎 File" : clean,
                                    "lastMessageAt": FieldValue.serverTimestamp(),
                                    "typing.\(senderId)": false])
     }
@@ -94,7 +98,8 @@ final class ChatViewModel: ObservableObject {
 
     func unsend(chatId: String, msgId: String) async {
         let ref = db.collection("chats").document(chatId).collection("messages").document(msgId)
-        try? await ref.updateData(["unsent": true, "text": "", "image": FieldValue.delete()])
+        try? await ref.updateData(["unsent": true, "text": "", "image": FieldValue.delete(),
+                                   "gif": FieldValue.delete(), "file": FieldValue.delete()])
     }
 
     func markSeen(chatId: String, me: String) async {

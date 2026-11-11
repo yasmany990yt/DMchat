@@ -24,6 +24,9 @@ struct Message: Identifiable, Hashable {
     var replyText: String? = nil
     var reactions: [String: String] = [:]
     var unsent = false
+    var gif: String? = nil
+    var file: Data? = nil
+    var fileName: String? = nil
 }
 
 struct ChatRoute: Hashable {
